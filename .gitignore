@@ -6,6 +6,8 @@ dist/
 dist-ssr/
 src-tauri/target/
 src-tauri/tab-engine/target/
+src-tauri/tab-engine/pkg/
+src-tauri/gen/
 web/dist/
 web/pkg/
 
@@ -28,4 +30,6 @@ npm-debug.log*
 .env
 .env.local
 *.local
+
+# Sub-crate lock
 src-tauri/tab-engine/Cargo.lock
