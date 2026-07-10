@@ -75,7 +75,7 @@ fn export_docx(source: &str, output_path: &std::path::Path) {
                 counter += 1;
                 match tab_engine::render_omml::render_math_to_mathml(content, false) {
                     Ok(mathml) => {
-                        let omml = tab_engine::render_omml::mathml_to_omml(&mathml);
+                        let omml = tab_engine::render_omml::mathml_to_omml(&mathml, false);
                         omml_map.insert(placeholder.clone(), omml);
                     }
                     Err(_) => {
@@ -95,7 +95,7 @@ fn export_docx(source: &str, output_path: &std::path::Path) {
                 counter += 1;
                 match tab_engine::render_omml::render_math_to_mathml(content, true) {
                     Ok(mathml) => {
-                        let omml = tab_engine::render_omml::mathml_to_omml(&mathml);
+                        let omml = tab_engine::render_omml::mathml_to_omml(&mathml, true);
                         omml_map.insert(placeholder.clone(), omml);
                     }
                     Err(_) => {

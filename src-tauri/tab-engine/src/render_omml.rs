@@ -122,26 +122,29 @@ fn extract_mathml(html: &str) -> Result<String, String> {
 }
 
 /// Convert MathML to OMML XML string.
-pub fn mathml_to_omml(mathml: &str) -> String {
+/// `display`: true for block/display math (m:oMathPara), false for inline (m:oMath).
+pub fn mathml_to_omml(mathml: &str, display: bool) -> String {
     let mut omml = String::new();
-    // Parse MathML and convert to OMML
     let doc = match roxmltree::Document::parse(mathml) {
         Ok(d) => d,
         Err(_) => return mathml_to_omml_fallback(mathml),
     };
 
     for node in doc.root().descendants() {
-        if node.is_element() {
-            match node.tag_name().name() {
-                "math" => {
-                    omml.push_str("<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\">");
-                    omml.push_str("<m:oMath>");
-                    for child in node.children() {
-                        convert_node(child, &mut omml);
-                    }
-                    omml.push_str("</m:oMath></m:oMathPara>");
-                }
-                _ => {} // handled in recursion
+        if node.is_element() && node.tag_name().name() == "math" {
+            let ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"";
+            if display {
+                omml.push_str(&format!("<m:oMathPara {}><m:oMath>", ns));
+            } else {
+                omml.push_str(&format!("<m:oMath {}>", ns));
+            }
+            for child in node.children() {
+                convert_node(child, &mut omml);
+            }
+            if display {
+                omml.push_str("</m:oMath></m:oMathPara>");
+            } else {
+                omml.push_str("</m:oMath>");
             }
         }
     }
@@ -326,7 +329,7 @@ mod tests {
     #[test]
     fn test_mathml_to_omml() {
         let mathml = r#"<math xmlns="http://www.w3.org/1998/Math/MathML"><msup><mi>x</mi><mn>2</mn></msup></math>"#;
-        let omml = mathml_to_omml(mathml);
+        let omml = mathml_to_omml(mathml, true);
         assert!(omml.contains("m:oMath"));
         assert!(omml.contains("m:sSup"));
     }
