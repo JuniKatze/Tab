@@ -55,9 +55,16 @@ fn export_docx(html: &str, output_path: &std::path::Path) {
     let parts = split_html(html);
 
     for part in &parts {
-        if part.starts_with("<svg") {
+        // Extract SVG from wrapper tags (span.math-inline / div.math-display)
+        let svg_content = if let Some(pos) = part.find("<svg") {
+            &part[pos..]
+        } else {
+            part.as_str()
+        };
+
+        if svg_content.starts_with("<svg") {
             // Convert SVG to PNG and embed
-            let svg_data = part.as_bytes();
+            let svg_data = svg_content.as_bytes();
             match svg_to_png(svg_data) {
                 Ok(png_data) => {
                     let img = Pic::new(&png_data)
