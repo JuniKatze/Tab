@@ -43,7 +43,11 @@ impl HtmlWorld {
         Self {
             main_id: id,
             main_source,
-            library: LazyHash::new(Library::builder().build()),
+            library: LazyHash::new(
+                Library::builder()
+                    .with_features(typst::Features::all())
+                    .build()
+            ),
             font_book: LazyHash::new(font_book),
             fonts,
         }
