@@ -285,7 +285,6 @@ fn convert_node(node: roxmltree::Node, out: &mut String) {
             out.push_str("</m:limUpp>");
         }
         "msubsup" => {
-            // Integral or other large operator with limits
             let elems: Vec<roxmltree::Node> = node.children().filter(|c| c.is_element()).collect();
             if elems.len() >= 3 {
                 let op = elems[0].text().unwrap_or("∫");
@@ -293,7 +292,7 @@ fn convert_node(node: roxmltree::Node, out: &mut String) {
                     "<m:nary><m:naryPr><m:chr m:val=\"{}\"/></m:naryPr>", op));
                 out.push_str("<m:sub>"); convert_node(elems[1], out); out.push_str("</m:sub>");
                 out.push_str("<m:sup>"); convert_node(elems[2], out); out.push_str("</m:sup>");
-                out.push_str("<m:e></m:e></m:nary>");
+                out.push_str("</m:nary>");
             } else {
                 for e in &elems { convert_node(*e, out); }
             }
