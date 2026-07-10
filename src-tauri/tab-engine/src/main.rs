@@ -142,9 +142,17 @@ fn split_html(html: &str) -> Vec<String> {
 fn svg_to_png(svg_data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let tree = usvg::Tree::from_data(svg_data, &usvg::Options::default())?;
     let size = tree.size().to_int_size();
-    let mut pixmap = resvg::tiny_skia::Pixmap::new(size.width(), size.height())
+    // Scale up: typst renders at ~1.33px/pt, DOCX needs larger images
+    let scale = 3.0;
+    let pw = (size.width() as f32 * scale).ceil() as u32;
+    let ph = (size.height() as f32 * scale).ceil() as u32;
+    let mut pixmap = resvg::tiny_skia::Pixmap::new(pw, ph)
         .ok_or("无法创建 pixmap")?;
-    resvg::render(&tree, resvg::tiny_skia::Transform::default(), &mut pixmap.as_mut());
+    resvg::render(
+        &tree,
+        resvg::tiny_skia::Transform::from_scale(scale, scale),
+        &mut pixmap.as_mut(),
+    );
     Ok(pixmap.encode_png()?)
 }
 
