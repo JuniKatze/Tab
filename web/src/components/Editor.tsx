@@ -14,13 +14,17 @@ interface EditorProps {
 export default function MtypEditor({ value, onChange }: EditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const onChangeRef = useRef(onChange);
+
+  // Keep onChange callback up to date without re-creating the editor
+  onChangeRef.current = onChange;
 
   useEffect(() => {
     if (!editorRef.current) return;
 
     const updateListener = EditorView.updateListener.of((update) => {
       if (update.docChanged) {
-        onChange(update.state.doc.toString());
+        onChangeRef.current(update.state.doc.toString());
       }
     });
 
@@ -50,6 +54,22 @@ export default function MtypEditor({ value, onChange }: EditorProps) {
       viewRef.current = null;
     };
   }, []);
+
+  // When value changes externally (e.g. file open), update the editor
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    const currentContent = view.state.doc.toString();
+    if (value !== currentContent) {
+      view.dispatch({
+        changes: {
+          from: 0,
+          to: currentContent.length,
+          insert: value,
+        },
+      });
+    }
+  }, [value]);
 
   return (
     <div
