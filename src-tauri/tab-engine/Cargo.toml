@@ -14,10 +14,9 @@ crate-type = ["cdylib", "rlib"]
 [[bin]]
 name = "tab"
 path = "src/main.rs"
-required-features = ["cli"]
 
 [features]
-default = []
+default = ["cli"]
 wasm = ["wasm-bindgen"]
 cli = ["clap"]
 docx = ["cli", "resvg", "usvg", "docx-rs"]
