@@ -52,7 +52,6 @@ fn export_docx(html: &str, output_path: &std::path::Path) {
     use docx_rs::*;
 
     let mut doc = Docx::new();
-    let mut image_idx = 0u32;
     let parts = split_html(html);
 
     for part in &parts {
