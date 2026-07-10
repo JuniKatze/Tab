@@ -3,7 +3,6 @@
 //!             cargo build --features docx (HTML + DOCX with OMML)
 
 use std::fs;
-use std::io::{Read, Write};
 use std::path::PathBuf;
 
 fn main() {
