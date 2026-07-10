@@ -63,14 +63,18 @@ fn export_docx(html: &str, output_path: &std::path::Path) {
         };
 
         if svg_content.starts_with("<svg") {
-            // Convert SVG to PNG and embed
+            // Convert SVG to PNG and embed as inline image
             let svg_data = svg_content.as_bytes();
             match svg_to_png(svg_data) {
                 Ok(png_data) => {
-                    let img = Pic::new(&png_data)
-                        .size(200, 50)
-                        .floating();
-                    doc = doc.add_paragraph(Paragraph::new().add_run(Run::new().add_image(img)));
+                    // Use actual PNG dimensions for sizing
+                    let (w, h) = get_png_size(&png_data).unwrap_or((300, 60));
+                    let img = Pic::new(&png_data).size(w, h);
+                    doc = doc.add_paragraph(
+                        Paragraph::new()
+                            .align(docx_rs::AlignmentType::Center)
+                            .add_run(Run::new().add_image(img))
+                    );
                 }
                 Err(_) => {
                     // Fallback: insert alt text
@@ -154,6 +158,16 @@ fn svg_to_png(svg_data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         &mut pixmap.as_mut(),
     );
     Ok(pixmap.encode_png()?)
+}
+
+#[cfg(feature = "docx")]
+fn get_png_size(data: &[u8]) -> Option<(u32, u32)> {
+    // Parse PNG IHDR chunk to get dimensions
+    if data.len() < 24 { return None; }
+    let w = u32::from_be_bytes([data[16], data[17], data[18], data[19]]);
+    let h = u32::from_be_bytes([data[20], data[21], data[22], data[23]]);
+    // Convert pixels to EMU (1px = 9525 EMU at 96 DPI)
+    Some((w * 9525 / 96, h * 9525 / 96))
 }
 
 #[cfg(feature = "docx")]
