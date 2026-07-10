@@ -119,7 +119,11 @@ pub fn render_math(content: &str, display: bool) -> Result<String, String> {
 /// In Typst, spacing around the math content determines the style:
 /// - `$x$` (no spaces) → inline style (compact fractions, smaller operators)
 /// - `$ x $` (spaces)  → display style (full-size fractions, larger operators)
+///
+/// We always trim user content and control style explicitly via the `display`
+/// parameter, so the user's whitespace doesn't accidentally change the style.
 fn build_math_document(content: &str, display: bool) -> String {
+    let content = content.trim();
     if display {
         format!(
             "#set page(width: auto, height: auto, margin: 0pt)\n#set text(size: 14pt, font: \"NewCM10-Regular\")\n$ {content} $"
