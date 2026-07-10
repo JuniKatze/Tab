@@ -8,11 +8,19 @@ description = "Typst-Markdown rendering engine"
 wasm-opt = false
 
 [lib]
+name = "tab_engine"
 crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "tab"
+path = "src/main.rs"
+required-features = ["cli"]
 
 [features]
 default = []
 wasm = ["wasm-bindgen"]
+cli = ["clap"]
+docx = ["cli", "resvg", "usvg", "docx-rs"]
 
 [dependencies]
 typst = "0.15"
@@ -22,3 +30,7 @@ pulldown-cmark = "0.12"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 wasm-bindgen = { version = "0.2", optional = true }
+clap = { version = "4", features = ["derive"], optional = true }
+resvg = { version = "0.47", optional = true }
+usvg = { version = "0.47", optional = true }
+docx-rs = { version = "0.4", optional = true }
