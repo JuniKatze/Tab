@@ -49,62 +49,81 @@ fn main() {
 #[cfg(feature = "docx")]
 fn export_docx(source: &str, output_path: &std::path::Path) {
     use std::collections::HashMap;
+    use docx_rs::*;
 
     let blocks = tab_engine::parse(source);
-    let mut doc = docx_rs::Docx::new();
+    let mut doc = Docx::new();
     let mut omml_map: HashMap<String, String> = HashMap::new();
     let mut counter = 0u32;
+
+    // Accumulate consecutive Text + InlineMath blocks into a single paragraph
+    let mut para_runs: Vec<ParaPart> = Vec::new();
+
+    enum ParaPart {
+        Text(String),
+        InlineMath(String), // placeholder key
+    }
+
+    fn flush_paragraph(
+        mut doc: docx_rs::Docx,
+        runs: &mut Vec<ParaPart>,
+    ) -> docx_rs::Docx {
+        if runs.is_empty() { return doc; }
+        let parts: Vec<ParaPart> = runs.drain(..).collect();
+        let mut para = docx_rs::Paragraph::new();
+        for part in parts {
+            match part {
+                ParaPart::Text(text) => {
+                    para = para.add_run(docx_rs::Run::new().add_text(&text));
+                }
+                ParaPart::InlineMath(placeholder) => {
+                    para = para.add_run(
+                        docx_rs::Run::new().add_text(&placeholder)
+                    );
+                }
+            }
+        }
+        doc.add_paragraph(para)
+    }
 
     for block in &blocks {
         match block {
             tab_engine::parser::Block::Text(text) => {
                 for line in text.lines() {
-                    let trimmed = line.trim();
-                    if trimmed.is_empty() {
-                        doc = doc.add_paragraph(docx_rs::Paragraph::new());
+                    if line.trim().is_empty() {
+                        // Empty line flushes current paragraph and adds a break
+                        doc = flush_paragraph(doc, &mut para_runs);
                     } else {
-                        doc = doc.add_paragraph(
-                            docx_rs::Paragraph::new()
-                                .add_run(docx_rs::Run::new().add_text(trimmed))
-                        );
+                        if !para_runs.is_empty() {
+                            para_runs.push(ParaPart::Text(" ".to_string()));
+                        }
+                        para_runs.push(ParaPart::Text(line.trim().to_string()));
                     }
                 }
             }
             tab_engine::parser::Block::InlineMath(content) => {
                 let placeholder = format!("OMMLPLACEHOLDER{}", counter);
                 counter += 1;
-                match tab_engine::render_omml::render_math_to_mathml(content, false) {
-                    Ok(mathml) => {
-                        let omml = tab_engine::render_omml::mathml_to_omml(&mathml, false);
-                        omml_map.insert(placeholder.clone(), omml);
-                    }
-                    Err(_) => {
-                        omml_map.insert(placeholder.clone(), format!(
-                            "<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMath><m:r><m:t>{}</m:t></m:r></m:oMath></m:oMathPara>",
-                            escape_xml(content)
-                        ));
-                    }
-                }
-                doc = doc.add_paragraph(
-                    docx_rs::Paragraph::new()
-                        .add_run(docx_rs::Run::new().add_text(&placeholder))
-                );
+                let omml = tab_engine::render_omml::render_math_to_mathml(content, false)
+                    .map(|ml| tab_engine::render_omml::mathml_to_omml(&ml, false))
+                    .unwrap_or_else(|_| format!(
+                        "<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:t>{}</m:t></m:r></m:oMath>",
+                        escape_xml(content)
+                    ));
+                omml_map.insert(placeholder.clone(), omml);
+                para_runs.push(ParaPart::InlineMath(placeholder));
             }
             tab_engine::parser::Block::DisplayMath(content) => {
+                doc = flush_paragraph(doc, &mut para_runs);
                 let placeholder = format!("OMMLPLACEHOLDER{}", counter);
                 counter += 1;
-                match tab_engine::render_omml::render_math_to_mathml(content, true) {
-                    Ok(mathml) => {
-                        let omml = tab_engine::render_omml::mathml_to_omml(&mathml, true);
-                        omml_map.insert(placeholder.clone(), omml);
-                    }
-                    Err(_) => {
-                        omml_map.insert(placeholder.clone(), format!(
-                            "<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMath><m:r><m:t>{}</m:t></m:r></m:oMath></m:oMathPara>",
-                            escape_xml(content)
-                        ));
-                    }
-                }
+                let omml = tab_engine::render_omml::render_math_to_mathml(content, true)
+                    .map(|ml| tab_engine::render_omml::mathml_to_omml(&ml, true))
+                    .unwrap_or_else(|_| format!(
+                        "<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMath><m:r><m:t>{}</m:t></m:r></m:oMath></m:oMathPara>",
+                        escape_xml(content)
+                    ));
+                omml_map.insert(placeholder.clone(), omml);
                 doc = doc.add_paragraph(
                     docx_rs::Paragraph::new()
                         .align(docx_rs::AlignmentType::Center)
@@ -112,6 +131,7 @@ fn export_docx(source: &str, output_path: &std::path::Path) {
                 );
             }
             tab_engine::parser::Block::Html(html) => {
+                doc = flush_paragraph(doc, &mut para_runs);
                 doc = doc.add_paragraph(
                     docx_rs::Paragraph::new()
                         .add_run(docx_rs::Run::new().add_text(html))
@@ -119,6 +139,7 @@ fn export_docx(source: &str, output_path: &std::path::Path) {
             }
         }
     }
+    doc = flush_paragraph(doc, &mut para_runs);
 
     let docx = doc.build();
     let file = fs::File::create(output_path).expect("无法创建 DOCX 文件");
@@ -149,8 +170,7 @@ fn inject_omml(path: &std::path::Path, omml_map: &std::collections::HashMap<Stri
         if name == "word/document.xml" {
             let mut xml = String::from_utf8(buf).expect("无效的 UTF-8");
             for (placeholder, omml) in omml_map {
-                // Replace placeholder text run with OMML paragraph
-                // docx-rs generates <w:rPr /> (self-closing) not <w:rPr></w:rPr>
+                // docx-rs generates <w:rPr /> (self-closing)
                 let old = format!("<w:r><w:rPr /><w:t xml:space=\"preserve\">{}</w:t></w:r>", placeholder);
                 xml = xml.replace(&old, omml);
             }
@@ -160,7 +180,6 @@ fn inject_omml(path: &std::path::Path, omml_map: &std::collections::HashMap<Stri
         }
     }
 
-    // Write new DOCX
     let out_file = fs::File::create(path).expect("无法创建输出文件");
     let mut zip_writer = zip::ZipWriter::new(out_file);
     let options = zip::write::FileOptions::default()
