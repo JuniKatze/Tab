@@ -1,8 +1,9 @@
 //! Tab CLI — convert .mtyp files to HTML or DOCX.
-//! Build with: cargo build --features cli     (HTML only)
-//!             cargo build --features docx    (HTML + DOCX)
+//! Build with: cargo build                (HTML + CLI)
+//!             cargo build --features docx (HTML + DOCX with OMML)
 
 use std::fs;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 
 fn main() {
@@ -10,7 +11,7 @@ fn main() {
     if args.len() < 2 {
         eprintln!("用法: tab <输入.mtyp> [--docx]");
         eprintln!("  tab document.mtyp         输出 HTML 到终端");
-        eprintln!("  tab document.mtyp --docx   输出 DOCX 文件到同目录");
+        eprintln!("  tab document.mtyp --docx   输出 DOCX 文件（可编辑公式）");
         std::process::exit(1);
     }
 
@@ -23,17 +24,11 @@ fn main() {
             std::process::exit(1);
         });
 
-    let result = tab_engine::render(&source)
-        .unwrap_or_else(|e| {
-            eprintln!("渲染失败: {}", e);
-            std::process::exit(1);
-        });
-
     if to_docx {
         #[cfg(feature = "docx")]
         {
             let docx_path = input_path.with_extension("docx");
-            export_docx(&result.html, &docx_path);
+            export_docx(&source, &docx_path);
             eprintln!("已输出: {}", docx_path.display());
         }
         #[cfg(not(feature = "docx"))]
@@ -43,58 +38,85 @@ fn main() {
             std::process::exit(1);
         }
     } else {
+        let result = tab_engine::render(&source)
+            .unwrap_or_else(|e| {
+                eprintln!("渲染失败: {}", e);
+                std::process::exit(1);
+            });
         println!("{}", result.html);
     }
 }
 
 #[cfg(feature = "docx")]
-fn export_docx(html: &str, output_path: &std::path::Path) {
-    use docx_rs::*;
+fn export_docx(source: &str, output_path: &std::path::Path) {
+    use std::collections::HashMap;
 
-    let mut doc = Docx::new();
-    let parts = split_html(html);
+    let blocks = tab_engine::parse(source);
+    let mut doc = docx_rs::Docx::new();
+    let mut omml_map: HashMap<String, String> = HashMap::new();
+    let mut counter = 0u32;
 
-    for part in &parts {
-        // Extract SVG from wrapper tags (span.math-inline / div.math-display)
-        let svg_content = if let Some(pos) = part.find("<svg") {
-            &part[pos..]
-        } else {
-            part.as_str()
-        };
-
-        if svg_content.starts_with("<svg") {
-            // Convert SVG to PNG and embed as inline image
-            let svg_data = svg_content.as_bytes();
-            match svg_to_png(svg_data) {
-                Ok(png_data) => {
-                    // Use actual PNG dimensions for sizing
-                    let (w, h) = get_png_size(&png_data).unwrap_or((300, 60));
-                    let img = Pic::new(&png_data).size(w, h);
-                    doc = doc.add_paragraph(
-                        Paragraph::new()
-                            .align(docx_rs::AlignmentType::Center)
-                            .add_run(Run::new().add_image(img))
-                    );
-                }
-                Err(_) => {
-                    // Fallback: insert alt text
-                    doc = doc.add_paragraph(
-                        Paragraph::new()
-                            .add_run(Run::new().add_text("[数学公式]"))
-                    );
+    for block in &blocks {
+        match block {
+            tab_engine::parser::Block::Text(text) => {
+                for line in text.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        doc = doc.add_paragraph(docx_rs::Paragraph::new());
+                    } else {
+                        doc = doc.add_paragraph(
+                            docx_rs::Paragraph::new()
+                                .add_run(docx_rs::Run::new().add_text(trimmed))
+                        );
+                    }
                 }
             }
-        } else if !part.trim().is_empty() {
-            let text = strip_tags(part);
-            for line in text.lines() {
-                let trimmed = line.trim();
-                if trimmed.is_empty() {
-                    doc = doc.add_paragraph(Paragraph::new());
-                } else {
-                    doc = doc.add_paragraph(
-                        Paragraph::new().add_run(Run::new().add_text(trimmed))
-                    );
+            tab_engine::parser::Block::InlineMath(content) => {
+                let placeholder = format!("OMMLPLACEHOLDER{}", counter);
+                counter += 1;
+                match tab_engine::render_omml::render_math_to_mathml(content, false) {
+                    Ok(mathml) => {
+                        let omml = tab_engine::render_omml::mathml_to_omml(&mathml);
+                        omml_map.insert(placeholder.clone(), omml);
+                    }
+                    Err(_) => {
+                        omml_map.insert(placeholder.clone(), format!(
+                            "<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMath><m:r><m:t>{}</m:t></m:r></m:oMath></m:oMathPara>",
+                            escape_xml(content)
+                        ));
+                    }
                 }
+                doc = doc.add_paragraph(
+                    docx_rs::Paragraph::new()
+                        .add_run(docx_rs::Run::new().add_text(&placeholder))
+                );
+            }
+            tab_engine::parser::Block::DisplayMath(content) => {
+                let placeholder = format!("OMMLPLACEHOLDER{}", counter);
+                counter += 1;
+                match tab_engine::render_omml::render_math_to_mathml(content, true) {
+                    Ok(mathml) => {
+                        let omml = tab_engine::render_omml::mathml_to_omml(&mathml);
+                        omml_map.insert(placeholder.clone(), omml);
+                    }
+                    Err(_) => {
+                        omml_map.insert(placeholder.clone(), format!(
+                            "<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMath><m:r><m:t>{}</m:t></m:r></m:oMath></m:oMathPara>",
+                            escape_xml(content)
+                        ));
+                    }
+                }
+                doc = doc.add_paragraph(
+                    docx_rs::Paragraph::new()
+                        .align(docx_rs::AlignmentType::Center)
+                        .add_run(docx_rs::Run::new().add_text(&placeholder))
+                );
+            }
+            tab_engine::parser::Block::Html(html) => {
+                doc = doc.add_paragraph(
+                    docx_rs::Paragraph::new()
+                        .add_run(docx_rs::Run::new().add_text(html))
+                );
             }
         }
     }
@@ -102,86 +124,60 @@ fn export_docx(html: &str, output_path: &std::path::Path) {
     let docx = doc.build();
     let file = fs::File::create(output_path).expect("无法创建 DOCX 文件");
     docx.pack(file).expect("无法打包 DOCX");
+
+    // Post-process: replace placeholders with actual OMML
+    inject_omml(output_path, &omml_map);
 }
 
-/// Split HTML into text and SVG blocks.
+/// Post-process the DOCX to replace OMML placeholders with actual OMML XML.
 #[cfg(feature = "docx")]
-fn split_html(html: &str) -> Vec<String> {
-    let mut parts = Vec::new();
-    let mut current = String::new();
-    let mut in_svg = false;
-    let mut i = 0;
-    let chars: Vec<char> = html.chars().collect();
+fn inject_omml(path: &std::path::Path, omml_map: &std::collections::HashMap<String, String>) {
+    use std::io::{Cursor, Read, Write};
+    use std::collections::HashMap;
 
-    while i < chars.len() {
-        if !in_svg && chars[i] == '<' {
-            let rest: String = chars[i..].iter().take(100).collect();
-            if rest.starts_with("<svg") || rest.starts_with("<span class=\"math-inline\"><svg")
-                || rest.starts_with("<div class=\"math-display\"><svg")
-            {
-                if !current.trim().is_empty() {
-                    parts.push(std::mem::take(&mut current));
-                }
-                in_svg = true;
+    let data = fs::read(path).expect("无法读取 DOCX 进行后处理");
+    let cursor = Cursor::new(data);
+    let mut archive = zip::ZipArchive::new(cursor).expect("无法打开 DOCX ZIP");
+
+    let mut entries: HashMap<String, Vec<u8>> = HashMap::new();
+
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).expect("无法读取 ZIP 条目");
+        let name = entry.name().to_string();
+        let mut buf = Vec::new();
+        entry.read_to_end(&mut buf).expect("无法读取条目内容");
+
+        if name == "word/document.xml" {
+            let mut xml = String::from_utf8(buf).expect("无效的 UTF-8");
+            for (placeholder, omml) in omml_map {
+                // Replace placeholder text run with OMML paragraph
+                // docx-rs generates <w:rPr /> (self-closing) not <w:rPr></w:rPr>
+                let old = format!("<w:r><w:rPr /><w:t xml:space=\"preserve\">{}</w:t></w:r>", placeholder);
+                xml = xml.replace(&old, omml);
             }
-        }
-        if in_svg {
-            current.push(chars[i]);
-            if chars[i] == '>' && current.ends_with("</svg>") {
-                parts.push(std::mem::take(&mut current));
-                in_svg = false;
-            }
+            entries.insert(name, xml.into_bytes());
         } else {
-            current.push(chars[i]);
-        }
-        i += 1;
-    }
-    if !current.is_empty() {
-        parts.push(current);
-    }
-    parts
-}
-
-#[cfg(feature = "docx")]
-fn svg_to_png(svg_data: &[u8]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let tree = usvg::Tree::from_data(svg_data, &usvg::Options::default())?;
-    let size = tree.size().to_int_size();
-    // Scale up: typst renders at ~1.33px/pt, DOCX needs larger images
-    let scale = 3.0;
-    let pw = (size.width() as f32 * scale).ceil() as u32;
-    let ph = (size.height() as f32 * scale).ceil() as u32;
-    let mut pixmap = resvg::tiny_skia::Pixmap::new(pw, ph)
-        .ok_or("无法创建 pixmap")?;
-    resvg::render(
-        &tree,
-        resvg::tiny_skia::Transform::from_scale(scale, scale),
-        &mut pixmap.as_mut(),
-    );
-    Ok(pixmap.encode_png()?)
-}
-
-#[cfg(feature = "docx")]
-fn get_png_size(data: &[u8]) -> Option<(u32, u32)> {
-    // Parse PNG IHDR chunk to get dimensions
-    if data.len() < 24 { return None; }
-    let w = u32::from_be_bytes([data[16], data[17], data[18], data[19]]);
-    let h = u32::from_be_bytes([data[20], data[21], data[22], data[23]]);
-    // Convert pixels to EMU (1px = 9525 EMU at 96 DPI)
-    Some((w * 9525 / 96, h * 9525 / 96))
-}
-
-#[cfg(feature = "docx")]
-fn strip_tags(html: &str) -> String {
-    let mut text = String::new();
-    let mut in_tag = false;
-    for ch in html.chars() {
-        if ch == '<' {
-            in_tag = true;
-        } else if ch == '>' {
-            in_tag = false;
-        } else if !in_tag {
-            text.push(ch);
+            entries.insert(name, buf);
         }
     }
-    text
+
+    // Write new DOCX
+    let out_file = fs::File::create(path).expect("无法创建输出文件");
+    let mut zip_writer = zip::ZipWriter::new(out_file);
+    let options = zip::write::FileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated);
+
+    for (name, data) in &entries {
+        zip_writer.start_file(name, options).expect("无法创建 ZIP 条目");
+        zip_writer.write_all(data).expect("无法写入 ZIP 条目");
+    }
+    zip_writer.finish().expect("无法完成 ZIP");
+}
+
+#[cfg(feature = "docx")]
+fn escape_xml(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }

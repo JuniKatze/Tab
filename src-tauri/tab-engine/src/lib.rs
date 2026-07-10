@@ -1,5 +1,6 @@
 pub mod parser;
 pub mod renderer;
+pub mod render_omml;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;

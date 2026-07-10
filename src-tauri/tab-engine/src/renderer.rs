@@ -8,8 +8,8 @@ use typst_layout::PagedDocument;
 use typst_svg::{svg, SvgOptions};
 
 /// Embedded New Computer Modern fonts for math rendering.
-const NEWCM_MATH_REGULAR: &[u8] = include_bytes!("../fonts/NewCMMath-Regular.otf");
-const NEWCM10_REGULAR: &[u8] = include_bytes!("../fonts/NewCM10-Regular.otf");
+pub const NEWCM_MATH_REGULAR: &[u8] = include_bytes!("../fonts/NewCMMath-Regular.otf");
+pub const NEWCM10_REGULAR: &[u8] = include_bytes!("../fonts/NewCM10-Regular.otf");
 
 /// A minimal in-memory World implementation for rendering math formulas.
 struct MathWorld {

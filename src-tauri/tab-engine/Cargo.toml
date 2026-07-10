@@ -19,17 +19,18 @@ path = "src/main.rs"
 default = ["cli"]
 wasm = ["wasm-bindgen"]
 cli = ["clap"]
-docx = ["cli", "resvg", "usvg", "docx-rs"]
+docx = ["cli", "docx-rs", "zip"]
 
 [dependencies]
 typst = "0.15"
 typst-svg = "0.15"
 typst-layout = "0.15"
+typst-html = "0.15"
 pulldown-cmark = "0.12"
+roxmltree = "0.20"
+zip = { version = "0.6", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 wasm-bindgen = { version = "0.2", optional = true }
 clap = { version = "4", features = ["derive"], optional = true }
-resvg = { version = "0.47", optional = true }
-usvg = { version = "0.47", optional = true }
 docx-rs = { version = "0.4", optional = true }
