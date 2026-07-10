@@ -338,4 +338,40 @@ fn convert_node(node: roxmltree::Node, out: &mut String) {
 
 /// Fallback: simple regex-based MathML → OMML conversion
 fn mathml_to_omml_fallback(mathml: &str) -> String {
-    // Remove <math> wrapper and use basic text extraction
+    let inner = mathml
+        .replace("<math xmlns=\"http://www.w3.org/1998/Math/MathML\">", "")
+        .replace("<math>", "")
+        .replace("</math>", "");
+    format!(
+        "<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:t>{}</m:t></m:r></m:oMath>",
+        escape_xml(&inner)
+    )
+}
+
+fn escape_xml(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mathml_extraction() {
+        let result = render_math_to_mathml("x^2", false);
+        assert!(result.is_ok(), "render failed: {:?}", result.err());
+        let mathml = result.unwrap();
+        assert!(mathml.contains("<math"), "should contain math element");
+    }
+
+    #[test]
+    fn test_mathml_to_omml() {
+        let mathml = r#"<math xmlns="http://www.w3.org/1998/Math/MathML"><msup><mi>x</mi><mn>2</mn></msup></math>"#;
+        let omml = mathml_to_omml(mathml, true);
+        assert!(omml.contains("m:oMath"));
+        assert!(omml.contains("m:sSup"));
+    }
+}
