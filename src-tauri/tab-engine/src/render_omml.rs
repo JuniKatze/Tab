@@ -4,7 +4,7 @@
 use typst::diag::{FileError, FileResult};
 use typst::foundations::{Bytes, Datetime, Duration};
 use typst::syntax::{FileId, Source, RootedPath, VirtualPath, VirtualRoot};
-use typst::text::{Font, FontBook};
+use typst::text::FontBook;
 use typst::utils::LazyHash;
 use typst::{Library, LibraryExt, World};
 use typst_html::HtmlDocument;
@@ -69,7 +69,6 @@ impl World for HtmlWorld {
 
 /// Render a math formula to HTML, then extract MathML.
 pub fn render_math_to_mathml(content: &str, display: bool) -> Result<String, String> {
-    use typst::foundations::Bytes;
     let content = content.trim();
     let source = if display {
         format!(
