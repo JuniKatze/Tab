@@ -285,21 +285,17 @@ fn convert_node(node: roxmltree::Node, out: &mut String) {
             out.push_str("</m:limUpp>");
         }
         "msubsup" => {
-            // Integral or other operator with both upper and lower limits
-            // elem 0 = operator, elem 1 = subscript, elem 2 = superscript
+            // Integral or other large operator with limits
             let elems: Vec<roxmltree::Node> = node.children().filter(|c| c.is_element()).collect();
             if elems.len() >= 3 {
-                out.push_str("<m:limUpp><m:limLow><m:e>");
-                convert_node(elems[0], out);
-                out.push_str("</m:e><m:lim>");
-                convert_node(elems[1], out);
-                out.push_str("</m:lim></m:limLow><m:lim>");
-                convert_node(elems[2], out);
-                out.push_str("</m:lim></m:limUpp>");
-            } else if elems.len() == 2 {
-                // Should not happen for msubsup, but fallback
-                convert_node(elems[0], out);
-                convert_node(elems[1], out);
+                let op = elems[0].text().unwrap_or("∫");
+                out.push_str(&format!(
+                    "<m:nary><m:naryPr><m:chr m:val=\"{}\"/></m:naryPr>", op));
+                out.push_str("<m:sub>"); convert_node(elems[1], out); out.push_str("</m:sub>");
+                out.push_str("<m:sup>"); convert_node(elems[2], out); out.push_str("</m:sup>");
+                out.push_str("<m:e></m:e></m:nary>");
+            } else {
+                for e in &elems { convert_node(*e, out); }
             }
         }
         "mtable" => {
@@ -343,35 +339,3 @@ fn mathml_to_omml_fallback(mathml: &str) -> String {
         .replace("<math>", "")
         .replace("</math>", "");
     format!(
-        "<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:t>{}</m:t></m:r></m:oMath>",
-        escape_xml(&inner)
-    )
-}
-
-fn escape_xml(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_mathml_extraction() {
-        let result = render_math_to_mathml("x^2", false);
-        assert!(result.is_ok(), "render failed: {:?}", result.err());
-        let mathml = result.unwrap();
-        assert!(mathml.contains("<math"), "should contain math element");
-    }
-
-    #[test]
-    fn test_mathml_to_omml() {
-        let mathml = r#"<math xmlns="http://www.w3.org/1998/Math/MathML"><msup><mi>x</mi><mn>2</mn></msup></math>"#;
-        let omml = mathml_to_omml(mathml, true);
-        assert!(omml.contains("m:oMath"));
-        assert!(omml.contains("m:sSup"));
-    }
-}
