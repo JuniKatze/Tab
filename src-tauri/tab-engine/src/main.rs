@@ -65,7 +65,7 @@ fn export_docx(source: &str, output_path: &std::path::Path) {
     }
 
     fn flush_paragraph(
-        mut doc: docx_rs::Docx,
+        doc: docx_rs::Docx,
         runs: &mut Vec<ParaPart>,
     ) -> docx_rs::Docx {
         if runs.is_empty() { return doc; }
