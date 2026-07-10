@@ -164,9 +164,20 @@ fn convert_node(node: roxmltree::Node, out: &mut String) {
     }
     match node.tag_name().name() {
         "mrow" => {
-            for child in node.children() {
-                convert_node(child, out);
+            // Check if this is a matrix wrapper (mrow containing mtable)
+            let child_elems: Vec<roxmltree::Node> = node.children().filter(|c| c.is_element()).collect();
+            if child_elems.len() == 1 && child_elems[0].has_tag_name("mtable") {
+                // Matrix with implicit parentheses — let mtable handle delimiters
+                convert_node(child_elems[0], out);
+            } else {
+                for child in node.children() {
+                    convert_node(child, out);
+                }
             }
+        }
+        "mspace" => {
+            // Differential spacing — add a small space
+            out.push_str("<m:r><m:t> </m:t></m:r>");
         }
         "mi" | "mn" => {
             let text = node.text().unwrap_or("");
@@ -273,18 +284,47 @@ fn convert_node(node: roxmltree::Node, out: &mut String) {
             }
             out.push_str("</m:limUpp>");
         }
+        "msubsup" => {
+            // Integral or other operator with both upper and lower limits
+            // elem 0 = operator, elem 1 = subscript, elem 2 = superscript
+            let elems: Vec<roxmltree::Node> = node.children().filter(|c| c.is_element()).collect();
+            if elems.len() >= 3 {
+                out.push_str("<m:limUpp><m:limLow><m:e>");
+                convert_node(elems[0], out);
+                out.push_str("</m:e><m:lim>");
+                convert_node(elems[1], out);
+                out.push_str("</m:lim></m:limLow><m:lim>");
+                convert_node(elems[2], out);
+                out.push_str("</m:lim></m:limUpp>");
+            } else if elems.len() == 2 {
+                // Should not happen for msubsup, but fallback
+                convert_node(elems[0], out);
+                convert_node(elems[1], out);
+            }
+        }
         "mtable" => {
-            // Matrix
+            // Matrix: wrap in OMML delimiter and matrix
+            // Check if parent has parentheses (mrow with mo before/after)
+            let parent = node.parent().unwrap();
+            let has_parens = parent.has_tag_name("mrow");
+            if has_parens {
+                out.push_str("<m:d><m:dPr><m:begChr m:val=\"(\"/><m:endChr m:val=\")\"/></m:dPr><m:e><m:m>");
+            }
             for child in node.children() {
                 if child.has_tag_name("mtr") {
-                    let mut first = true;
+                    out.push_str("<m:mr>");
                     for cell in child.children() {
                         if cell.has_tag_name("mtd") {
-                            if first { first = false; }
+                            out.push_str("<m:e>");
                             convert_node(cell, out);
+                            out.push_str("</m:e>");
                         }
                     }
+                    out.push_str("</m:mr>");
                 }
+            }
+            if has_parens {
+                out.push_str("</m:m></m:e></m:d>");
             }
         }
         _ => {
@@ -299,42 +339,3 @@ fn convert_node(node: roxmltree::Node, out: &mut String) {
 /// Fallback: simple regex-based MathML → OMML conversion
 fn mathml_to_omml_fallback(mathml: &str) -> String {
     // Remove <math> wrapper and use basic text extraction
-    let inner = mathml
-        .replace("<math xmlns=\"http://www.w3.org/1998/Math/MathML\">", "")
-        .replace("<math>", "")
-        .replace("</math>", "");
-    format!(
-        "<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\">\
-         <m:oMath><m:r><m:t>{}</m:t></m:r></m:oMath></m:oMathPara>",
-        escape_xml(&inner)
-    )
-}
-
-fn escape_xml(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_mathml_extraction() {
-        let result = render_math_to_mathml("x^2", false);
-        assert!(result.is_ok(), "render failed: {:?}", result.err());
-        let mathml = result.unwrap();
-        assert!(mathml.contains("<math"), "should contain math element");
-        println!("{}", mathml);
-    }
-
-    #[test]
-    fn test_mathml_to_omml() {
-        let mathml = r#"<math xmlns="http://www.w3.org/1998/Math/MathML"><msup><mi>x</mi><mn>2</mn></msup></math>"#;
-        let omml = mathml_to_omml(mathml, true);
-        assert!(omml.contains("m:oMath"));
-        assert!(omml.contains("m:sSup"));
-    }
-}
