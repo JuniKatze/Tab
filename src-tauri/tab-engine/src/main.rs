@@ -57,7 +57,6 @@ fn export_docx(html: &str, output_path: &std::path::Path) {
     for part in &parts {
         if part.starts_with("<svg") {
             // Convert SVG to PNG and embed
-            image_idx += 1;
             let svg_data = part.as_bytes();
             match svg_to_png(svg_data) {
                 Ok(png_data) => {
