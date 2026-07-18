@@ -11,6 +11,9 @@ src-tauri/gen/
 web/dist/
 web/pkg/
 
+# Test artifacts
+src-tauri/tab-engine/docx-tests/*.docx
+
 # IDE
 .vscode/
 .idea/
@@ -30,5 +33,8 @@ npm-debug.log*
 .env.local
 *.local
 
-# Sub-crate lock
+# ZCode session artifacts
+.zcode/
+
+# Sub-crate lock (managed by workspace root)
 src-tauri/tab-engine/Cargo.lock

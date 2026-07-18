@@ -7,13 +7,36 @@ import "./App.css";
 
 const DEFAULT_CONTENT = "";
 
+type SaveStatus = "saved" | "saving" | "unsaved";
+
 function App() {
   const [content, setContent] = useState(DEFAULT_CONTENT);
   const [html, setHtml] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [filePath, setFilePath] = useState<string | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const renderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track the last content that was successfully saved
+  const savedContentRef = useRef(DEFAULT_CONTENT);
+  // Keep a stable reference to current content for the save timer
+  const contentRef = useRef(content);
+  contentRef.current = content;
+  const filePathRef = useRef(filePath);
+  filePathRef.current = filePath;
+
+  const doSave = useCallback(async (path: string, text: string) => {
+    setSaveStatus("saving");
+    try {
+      await invoke("save_file", { path, content: text });
+      savedContentRef.current = text;
+      setSaveStatus("saved");
+    } catch (e) {
+      setError(String(e));
+      setSaveStatus("unsaved");
+    }
+  }, []);
 
   const render = useCallback(async (source: string) => {
     setLoading(true);
@@ -32,19 +55,55 @@ function App() {
     }
   }, []);
 
+  // Render with debounce
   useEffect(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
+    if (renderTimerRef.current) {
+      clearTimeout(renderTimerRef.current);
     }
-    timerRef.current = setTimeout(() => {
+    renderTimerRef.current = setTimeout(() => {
       render(content);
     }, 500);
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
+      if (renderTimerRef.current) {
+        clearTimeout(renderTimerRef.current);
       }
     };
   }, [content, render]);
+
+  // Auto-save with debounce when filePath is set
+  useEffect(() => {
+    if (!filePath) {
+      // New file without path — mark unsaved if content differs from default
+      if (content !== savedContentRef.current) {
+        setSaveStatus("unsaved");
+      }
+      return;
+    }
+    // Don't auto-save if content hasn't changed from last save
+    if (content === savedContentRef.current) {
+      setSaveStatus("saved");
+      return;
+    }
+
+    setSaveStatus("unsaved");
+
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = setTimeout(() => {
+      const currentContent = contentRef.current;
+      const currentPath = filePathRef.current;
+      if (currentPath && currentContent !== savedContentRef.current) {
+        doSave(currentPath, currentContent);
+      }
+    }, 300);
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, [content, filePath, doSave]);
 
   const handleOpenFile = async () => {
     const selected = await open({
@@ -65,6 +124,8 @@ function App() {
         );
         setContent(result.content);
         setFilePath(result.path);
+        savedContentRef.current = result.content;
+        setSaveStatus("saved");
       } catch (e) {
         setError(String(e));
       }
@@ -72,6 +133,11 @@ function App() {
   };
 
   const handleSave = async () => {
+    // Flush any pending auto-save
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+
     let targetPath = filePath;
     if (!targetPath) {
       // New file — ask where to save
@@ -87,11 +153,7 @@ function App() {
       setFilePath(targetPath);
     }
 
-    try {
-      await invoke("save_file", { path: targetPath, content });
-    } catch (e) {
-      setError(String(e));
-    }
+    await doSave(targetPath, content);
   };
 
   // Ctrl+S / Cmd+S shortcut
@@ -106,12 +168,21 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [filePath, content]);
 
+  const saveStatusLabel: Record<SaveStatus, string> = {
+    saved: "💾 已保存",
+    saving: "⏳ 保存中...",
+    unsaved: "⚠ 未保存",
+  };
+
   return (
     <div className="app-container">
       <div className="editor-pane">
         <div className="pane-header">
           <span>{filePath ? filePath : "Editor (.mtyp)"}</span>
           <div className="header-btns">
+            <span className={`save-status save-status--${saveStatus}`}>
+              {saveStatusLabel[saveStatus]}
+            </span>
             <button className="open-btn" onClick={handleOpenFile}>
               打开
             </button>

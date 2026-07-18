@@ -4,6 +4,8 @@ import MtypEditor from "./components/Editor";
 import Preview from "./components/Preview";
 import "./App.css";
 
+const LS_KEY = "tabdown-autosave-content";
+
 const DEFAULT_CONTENT = `# Typst-Markdown Demo
 
 This is a **Typst-Markdown** document (.mtyp).
@@ -28,18 +30,38 @@ You can write normal Markdown text here, with **bold**, *italic*, and
 \`code\`. The math parts use Typst syntax instead of LaTeX!
 `;
 
+function loadContent(): string {
+  try {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved !== null) {
+      return saved;
+    }
+  } catch {
+    // localStorage unavailable — ignore
+  }
+  return DEFAULT_CONTENT;
+}
+
+type SaveStatus = "saved" | "saving" | "unsaved";
+
 interface RenderResponse {
   html: string;
   math_count: number;
 }
 
 function App() {
-  const [content, setContent] = useState(DEFAULT_CONTENT);
+  const [content, setContent] = useState(loadContent);
   const [html, setHtml] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [wasmReady, setWasmReady] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved");
+  const renderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track last saved content to avoid unnecessary writes
+  const savedContentRef = useRef(content);
+  const contentRef = useRef(content);
+  contentRef.current = content;
 
   // Load WASM
   useEffect(() => {
@@ -70,19 +92,56 @@ function App() {
     }
   }, [wasmReady]);
 
+  // Render with debounce
   useEffect(() => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
+    if (renderTimerRef.current) {
+      clearTimeout(renderTimerRef.current);
     }
-    timerRef.current = setTimeout(() => {
+    renderTimerRef.current = setTimeout(() => {
       render(content);
     }, 500);
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
+      if (renderTimerRef.current) {
+        clearTimeout(renderTimerRef.current);
       }
     };
   }, [content, render]);
+
+  // Auto-save to localStorage with debounce
+  useEffect(() => {
+    if (content === savedContentRef.current) {
+      return;
+    }
+
+    setSaveStatus("unsaved");
+
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = setTimeout(() => {
+      const currentContent = contentRef.current;
+      try {
+        localStorage.setItem(LS_KEY, currentContent);
+        savedContentRef.current = currentContent;
+        setSaveStatus("saved");
+      } catch {
+        // localStorage full or unavailable
+        setSaveStatus("unsaved");
+      }
+    }, 300);
+
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+    };
+  }, [content]);
+
+  const saveStatusLabel: Record<SaveStatus, string> = {
+    saved: "💾 已保存",
+    saving: "saving...",
+    unsaved: "⚠ unsaved",
+  };
 
   if (!wasmReady && !error) {
     return (
@@ -124,7 +183,14 @@ function App() {
   return (
     <div className="app-container">
       <div className="editor-pane">
-        <div className="pane-header">Editor (.mtyp)</div>
+        <div className="pane-header">
+          <span>Editor (.mtyp)</span>
+          <div className="header-btns">
+            <span className={`save-status save-status--${saveStatus}`}>
+              {saveStatusLabel[saveStatus]}
+            </span>
+          </div>
+        </div>
         <MtypEditor value={content} onChange={setContent} />
       </div>
       <div className="preview-pane">

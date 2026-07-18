@@ -1,6 +1,6 @@
 use typst::diag::{FileError, FileResult};
 use typst::foundations::{Bytes, Datetime, Duration};
-use typst::syntax::{FileId, Source, RootedPath, VirtualPath, VirtualRoot};
+use typst::syntax::{FileId, RootedPath, Source, VirtualPath, VirtualRoot};
 use typst::text::{Font, FontBook};
 use typst::utils::LazyHash;
 use typst::{Library, LibraryExt, World};
@@ -10,6 +10,9 @@ use typst_svg::{svg, SvgOptions};
 /// Embedded New Computer Modern fonts for math rendering.
 pub const NEWCM_MATH_REGULAR: &[u8] = include_bytes!("../fonts/NewCMMath-Regular.otf");
 pub const NEWCM10_REGULAR: &[u8] = include_bytes!("../fonts/NewCM10-Regular.otf");
+/// CJK font for text inside math formulas (e.g. `$"中文"$`, `cases` annotations).
+pub const NOTO_SERIF_CJK_SC_REGULAR: &[u8] =
+    include_bytes!("../fonts/NotoSerifCJKsc-Regular.otf");
 
 /// A minimal in-memory World implementation for rendering math formulas.
 struct MathWorld {
@@ -34,16 +37,22 @@ impl MathWorld {
         let mut fonts: Vec<Font> = Vec::new();
 
         // Add NewCM10-Regular (text font)
-        let text_font = Font::new(Bytes::new(NEWCM10_REGULAR), 0)
-            .expect("failed to load NewCM10-Regular");
+        let text_font =
+            Font::new(Bytes::new(NEWCM10_REGULAR), 0).expect("failed to load NewCM10-Regular");
         font_book.push(text_font.info().clone());
         fonts.push(text_font);
 
         // Add NewCMMath-Regular (math font)
-        let math_font = Font::new(Bytes::new(NEWCM_MATH_REGULAR), 0)
-            .expect("failed to load NewCMMath-Regular");
+        let math_font =
+            Font::new(Bytes::new(NEWCM_MATH_REGULAR), 0).expect("failed to load NewCMMath-Regular");
         font_book.push(math_font.info().clone());
         fonts.push(math_font);
+
+        // Add Noto Serif CJK SC (for CJK text inside math formulas)
+        let cjk_font = Font::new(Bytes::new(NOTO_SERIF_CJK_SC_REGULAR), 0)
+            .expect("failed to load NotoSerifCJKsc-Regular");
+        font_book.push(cjk_font.info().clone());
+        fonts.push(cjk_font);
 
         Self {
             main_id: id,
@@ -100,9 +109,7 @@ pub fn render_math(content: &str, display: bool) -> Result<String, String> {
     let world = MathWorld::new(source);
 
     let warned = typst::compile::<PagedDocument>(&world);
-    let document = warned
-        .output
-        .map_err(|errors| format_errors(&errors))?;
+    let document = warned.output.map_err(|errors| format_errors(&errors))?;
 
     let pages = document.pages();
     if pages.is_empty() {
@@ -126,11 +133,11 @@ fn build_math_document(content: &str, display: bool) -> String {
     let content = content.trim();
     if display {
         format!(
-            "#set page(width: auto, height: auto, margin: 0pt)\n#set text(size: 14pt, font: \"NewCM10-Regular\")\n$ {content} $"
+            "#set page(width: auto, height: auto, margin: 0pt)\n#set text(size: 12pt, font: (\"NewCM10-Regular\", \"Noto Serif CJK SC\"))\n$ {content} $"
         )
     } else {
         format!(
-            "#set page(width: auto, height: auto, margin: 0pt)\n#set text(size: 12pt, font: \"NewCM10-Regular\")\n${content}$"
+            "#set page(width: auto, height: auto, margin: 0pt)\n#set text(size: 12pt, font: (\"NewCM10-Regular\", \"Noto Serif CJK SC\"))\n${content}$"
         )
     }
 }

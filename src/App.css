@@ -67,6 +67,28 @@ html, body, #root {
   background: #4a4a4a;
 }
 
+.save-status {
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 2px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.save-status--saved {
+  color: #6a9955;
+}
+
+.save-status--saving {
+  color: #dcdcaa;
+}
+
+.save-status--unsaved {
+  color: #f48771;
+}
+
 .editor-pane > .cm-editor {
   flex: 1;
   overflow: hidden;
@@ -81,61 +103,12 @@ html, body, #root {
   color: #333;
 }
 
-.preview-content {
+.preview-scroll {
   flex: 1;
   overflow: auto;
-  padding: 24px;
-  line-height: 1.7;
-  font-size: 15px;
+  background: #e5e5e5;
 }
 
-.preview-content h1,
-.preview-content h2,
-.preview-content h3 {
-  margin: 0.8em 0 0.4em;
-  color: #1a1a1a;
-}
-
-.preview-content p {
-  margin: 0.5em 0;
-}
-
-.preview-content code {
-  background: #f0f0f0;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 0.9em;
-}
-
-/* Inline math SVG styling */
-.preview-content .math-inline {
-  display: inline;
-}
-
-.preview-content .math-inline svg {
-  display: inline-block;
-  vertical-align: -0.12em;
-  height: 1em !important;
-  width: auto !important;
-}
-
-/* Display math SVG styling */
-.preview-content .math-display {
-  display: block;
-  text-align: center;
-  margin: 1.5em 0;
-  padding: 4px 0;
-}
-
-.preview-content .math-display svg {
-  display: block;
-  margin: 0 auto;
-  max-width: 100%;
-  height: auto;
-}
-
-/* Error styling */
-.preview-content .math-error,
 .preview-error {
   color: #e74c3c;
   background: #fdf0ef;
