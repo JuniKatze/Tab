@@ -174,7 +174,10 @@ mod tests {
     #[test]
     fn test_nested_braces_in_math() {
         let result = parse(r"$f(x) = \frac{1}{2}$");
-        assert_eq!(result, vec![Block::InlineMath(r"f(x) = \frac{1}{2}".into())]);
+        assert_eq!(
+            result,
+            vec![Block::InlineMath(r"f(x) = \frac{1}{2}".into())]
+        );
     }
 
     #[test]

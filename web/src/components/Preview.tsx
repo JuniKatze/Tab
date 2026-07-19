@@ -24,7 +24,7 @@ export default function Preview({ html, error, loading }: PreviewProps) {
 
   return (
     <div
-      className="preview-content"
+      className="preview-scroll"
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

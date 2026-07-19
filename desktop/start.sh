@@ -37,7 +37,6 @@ done
 
 echo "Starting local server..."
 cd "$DIR/dist"
-# Use no-cache headers to prevent WebKit from serving stale cached assets
 python3 -c "
 import http.server
 import sys

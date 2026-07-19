@@ -1,7 +1,12 @@
 import { useEffect, useRef } from "react";
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import {
+  defaultKeymap,
+  emacsStyleKeymap,
+  history,
+  historyKeymap,
+} from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { syntaxHighlighting, defaultHighlightStyle } from "@codemirror/language";
@@ -34,7 +39,7 @@ export default function MtypEditor({ value, onChange }: EditorProps) {
         lineNumbers(),
         markdown(),
         history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        keymap.of([...emacsStyleKeymap, ...defaultKeymap, ...historyKeymap]),
         oneDark,
         syntaxHighlighting(defaultHighlightStyle),
         updateListener,

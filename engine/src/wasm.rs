@@ -13,8 +13,7 @@ pub fn parse_mtyp(source: &str) -> String {
 /// Render a single math formula to SVG.
 #[wasm_bindgen]
 pub fn render_math_wasm(content: &str, display: bool) -> Result<String, JsValue> {
-    crate::renderer::render_math(content, display)
-        .map_err(|e| JsValue::from_str(&e))
+    crate::renderer::render_math(content, display).map_err(|e| JsValue::from_str(&e))
 }
 
 /// Render a complete .mtyp document. Returns JSON with html and math_count.

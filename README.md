@@ -1,6 +1,6 @@
 # Tab — Typst 数学公式 Markdown 编辑器
 
-[![Rust](https://img.shields.io/badge/引擎-Rust-orange)](src-tauri/tab-engine)
+[![Rust](https://img.shields.io/badge/引擎-Rust-orange)](engine)
 [![Tauri](https://img.shields.io/badge/桌面-Tauri-blue)](https://tauri.app)
 [![WASM](https://img.shields.io/badge/网页-WASM-purple)](web)
 
@@ -27,39 +27,40 @@
 
 ```
 Tab/
-├── src/                              # React + CodeMirror 6 前端
-│   ├── App.tsx                       #   桌面应用主组件
-│   └── components/
-│       ├── Editor.tsx                #   CodeMirror 6 编辑器（Emacs 键位）
-│       └── Preview.tsx               #   实时 HTML 预览
-├── src-tauri/                        # Tauri 桌面外壳
-│   ├── src/
-│   │   ├── main.rs                   #   应用入口
-│   │   └── lib.rs                    #   Tauri 命令（render/save/read）
-│   ├── tab-engine/                   # ★ 独立渲染引擎
+├── Cargo.toml                         # Cargo workspace 根
+├── desktop/                           # 桌面应用
+│   ├── src/                           #   React + CodeMirror 6 前端
+│   │   ├── App.tsx                    #     桌面应用主组件
+│   │   └── components/
+│   │       ├── Editor.tsx             #     CodeMirror 6 编辑器（Emacs 键位）
+│   │       └── Preview.tsx            #     实时 HTML 预览
+│   ├── src-tauri/                     #   Tauri 桌面外壳
 │   │   ├── src/
-│   │   │   ├── parser.rs             #   .mtyp 解析器（自定义状态机）
-│   │   │   ├── renderer.rs           #   Typst 公式 → SVG
-│   │   │   ├── render_omml.rs        #   Typst 公式 → MathML → OMML（DOCX）
-│   │   │   ├── lib.rs                #   公共 API + Markdown 渲染（pulldown-cmark）
-│   │   │   ├── main.rs               #   CLI 工具 + DOCX 导出
-│   │   │   ├── wasm.rs               #   WASM 绑定
-│   │   │   └── style.css             #   输出 HTML 默认样式表
-│   │   ├── fonts/                    #   内嵌字体
-│   │   │   ├── NewCM10-Regular.otf   #     数学文本字体
-│   │   │   ├── NewCMMath-Regular.otf #     数学符号字体
-│   │   │   └── NotoSerifCJKsc-Regular.otf  # CJK 字体（子集化）
-│   │   ├── docx-tests/               #   DOCX 编译测试用例
-│   │   ├── tests/                    #   集成测试
-│   │   └── build.rs                  #   构建脚本
-│   └── Cargo.toml
-├── web/                              # 独立的 WASM 网页版
+│   │   │   ├── main.rs               #     应用入口
+│   │   │   └── lib.rs                #     Tauri 命令
+│   │   └── Cargo.toml                #     依赖 engine/
+│   ├── index.html
+│   ├── package.json
+│   └── start.sh                     #   一键启动脚本
+├── engine/                           # ★ 独立渲染引擎
 │   ├── src/
-│   ├── pkg/                          # 生成的 WASM + JS 绑定
-│   └── build-wasm.sh                 # WASM 构建脚本
-├── DESIGN.md                         # 设计规范
-├── start.sh                          # 桌面应用一键启动
-└── package.json                      # 前端依赖
+│   │   ├── parser.rs                 #   .mtyp 解析器
+│   │   ├── renderer.rs               #   Typst 公式 → SVG
+│   │   ├── render_omml.rs            #   MathML → OMML（DOCX）
+│   │   ├── lib.rs                    #   公共 API + Markdown 渲染
+│   │   ├── main.rs                   #   CLI 工具 + DOCX 导出
+│   │   ├── wasm.rs                   #   WASM 绑定
+│   │   └── style.css                 #   输出 HTML 默认样式表
+│   ├── fonts/
+│   ├── docx-tests/
+│   ├── tests/
+│   └── Cargo.toml
+├── web/                              # WASM 网页版
+│   ├── src/
+│   ├── pkg/
+│   └── build-wasm.sh
+├── DESIGN.md
+└── README.md
 ```
 
 ### tab-engine — API
@@ -89,13 +90,13 @@ let result = tab_engine::render(source)?;
 ### 桌面应用 (Tauri)
 
 ```bash
-./start.sh
+./desktop/start.sh
 ```
 
 或手动：
 
 ```bash
-npm run build
+cd desktop && npm run build
 cd dist && python3 -m http.server 1420 -b 127.0.0.1 &
 cd ../src-tauri && cargo run --release
 ```
@@ -120,7 +121,7 @@ cargo run --features docx --release -- document.mtyp --docx
 ### 运行测试
 
 ```bash
-cd src-tauri/tab-engine && cargo test
+cd engine && cargo test
 # 48 个单元测试 + 3 个集成测试 = 51 tests
 ```
 

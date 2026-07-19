@@ -19,7 +19,11 @@ $$ sum_(i=1)^n i = (n(n+1)) / 2 $$
             println!("=== math_count: {} ===", r.math_count);
             println!("=== HTML output ===");
             println!("{}", r.html);
-            assert!(r.math_count >= 2, "Expected at least 2 math blocks, got {}", r.math_count);
+            assert!(
+                r.math_count >= 2,
+                "Expected at least 2 math blocks, got {}",
+                r.math_count
+            );
             assert!(r.html.contains("<svg"), "HTML should contain SVG");
             assert!(r.html.contains("<strong>"), "HTML should contain bold");
         }
@@ -62,9 +66,8 @@ fn test_inline_vs_display_differs() {
 
 #[test]
 fn test_inline_inside_paragraph() {
-    let result = tab_engine::render(
-        "The equation $x^2$ is important.\n\n$$ sum_(i=1)^n i $$"
-    ).unwrap();
+    let result =
+        tab_engine::render("The equation $x^2$ is important.\n\n$$ sum_(i=1)^n i $$").unwrap();
 
     // Inline math must NOT be between </p> and next tag
     let bad_pattern = "</p><span class=\"math-inline\"";
@@ -75,8 +78,14 @@ fn test_inline_inside_paragraph() {
 
     // But it should contain math-inline inside a <p> context
     assert!(result.html.contains("<p>"), "Should have paragraph tags");
-    assert!(result.html.contains("math-inline"), "Should have inline math");
-    assert!(result.html.contains("math-display"), "Should have display math");
+    assert!(
+        result.html.contains("math-inline"),
+        "Should have inline math"
+    );
+    assert!(
+        result.html.contains("math-display"),
+        "Should have display math"
+    );
 
     println!("PASS: inline math is inside paragraph");
 }

@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.chen.tab",
   "build": {
-    "beforeDevCommand": "npm run dev",
+    "beforeDevCommand": "cd .. && npm run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "npm run build",
+    "beforeBuildCommand": "cd .. && npm run build",
     "frontendDist": "../dist"
   },
   "app": {

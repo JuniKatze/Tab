@@ -1,0 +1,194 @@
+/* Tab Engine default styles for .mtyp rendered HTML. */
+
+.preview-content {
+  --tab-body-line-height: 1.6;
+  --tab-paragraph-gap: 1em;
+  --tab-heading-gap: 1.25em;
+  --tab-block-gap: var(--tab-paragraph-gap);
+  --tab-list-item-gap: 0.25em;
+
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 2.5cm;
+  color: #111;
+  background: #fff;
+  font-family: "Noto Serif CJK SC", "Source Han Serif SC", "Times New Roman", serif;
+  font-size: 12pt;
+  line-height: var(--tab-body-line-height);
+}
+
+.preview-content * {
+  box-sizing: border-box;
+}
+
+.preview-content h1,
+.preview-content h2,
+.preview-content h3,
+.preview-content h4,
+.preview-content h5,
+.preview-content h6 {
+  margin: var(--tab-heading-gap) 0;
+  color: #111;
+  font-family: "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.preview-content h1 {
+  text-align: center;
+  font-size: 18pt;
+}
+
+.preview-content h2 {
+  text-align: left;
+  font-size: 16pt;
+}
+
+.preview-content h3 {
+  text-align: left;
+  font-size: 15pt;
+}
+
+.preview-content h4 {
+  text-align: left;
+  font-size: 14pt;
+}
+
+.preview-content h5,
+.preview-content h6 {
+  text-align: left;
+  font-size: 12pt;
+}
+
+.preview-content p {
+  margin: var(--tab-paragraph-gap) 0;
+  line-height: var(--tab-body-line-height);
+}
+
+.preview-content p.list-lead {
+  margin-bottom: 0;
+}
+
+.preview-content code {
+  color: #e74c3c;
+  font-family: "Source Han Mono SC", "Noto Sans Mono CJK SC", "Cascadia Code", Consolas, monospace;
+  font-size: 12pt;
+}
+
+.preview-content pre {
+  position: relative;
+  margin: var(--tab-block-gap) 0;
+  padding: 2.2em 1em 1em;
+  overflow-x: auto;
+  color: #fff;
+  background: #666666;
+  border: 1px solid #555;
+  border-radius: 3px;
+  font-family: "Source Han Mono SC", "Noto Sans Mono CJK SC", "Cascadia Code", Consolas, monospace;
+  font-size: 12pt;
+  line-height: 1;
+}
+
+.preview-content pre code {
+  display: block;
+  color: inherit;
+  background: transparent;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.preview-content pre code[class^="language-"]::before {
+  content: attr(class);
+  position: absolute;
+  top: 0;
+  right: 0;
+  padding: 0.35em 0.7em;
+  color: #fff;
+  background: #555;
+  font-family: "Noto Sans CJK SC", "Source Han Sans SC", sans-serif;
+  font-size: 9pt;
+  line-height: 1;
+}
+
+.preview-content blockquote {
+  margin: var(--tab-block-gap) 0;
+  padding: 0.5em 1em;
+  color: #333;
+  background: #f5f5f5;
+  border-left: 3px solid #999;
+}
+
+.preview-content ul,
+.preview-content ol {
+  margin: var(--tab-block-gap) 0;
+  padding-left: 1.5em;
+}
+
+.preview-content ul.list-attached,
+.preview-content ol.list-attached {
+  margin-top: 0;
+  margin-bottom: var(--tab-block-gap);
+}
+
+.preview-content li {
+  margin: var(--tab-list-item-gap) 0;
+}
+
+.preview-content .list-attached li {
+  margin: 0;
+}
+
+.preview-content table {
+  margin: var(--tab-block-gap) auto;
+  border-collapse: collapse;
+}
+
+.preview-content th,
+.preview-content td {
+  padding: 0.4em 0.8em;
+  border: 1px solid #ddd;
+}
+
+.preview-content th {
+  font-weight: 700;
+  background: #f5f5f5;
+}
+
+.preview-content a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.preview-content .math-inline {
+  display: inline;
+}
+
+.preview-content .math-inline svg {
+  display: inline-block;
+  width: auto !important;
+  height: auto !important;
+  vertical-align: 0em;
+}
+
+.preview-content .math-display {
+  display: block;
+  margin: var(--tab-block-gap) 0;
+  text-align: center;
+}
+
+.preview-content .math-display svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.preview-content .math-error {
+  padding: 2px 6px;
+  color: #e74c3c;
+  background: #fdf0ef;
+  border: 1px solid #e74c3c;
+  border-radius: 3px;
+  font-family: "Source Han Mono SC", "Noto Sans Mono CJK SC", Consolas, monospace;
+  font-size: 12pt;
+}

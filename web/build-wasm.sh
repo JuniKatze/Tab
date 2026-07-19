@@ -4,7 +4,7 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-ENGINE_DIR="$SCRIPT_DIR/../src-tauri/tab-engine"
+ENGINE_DIR="$SCRIPT_DIR/../engine"
 PKG_DIR="$SCRIPT_DIR/pkg"
 
 echo "Building tab-engine for wasm32-unknown-unknown..."
